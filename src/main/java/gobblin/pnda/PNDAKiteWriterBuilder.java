@@ -45,7 +45,7 @@ public class PNDAKiteWriterBuilder extends DataWriterBuilder<Schema, GenericReco
 
       String datasetURI = properties.getProp(KITE_WRITER_DATASET_URI);
       try {
-          Dataset events = Datasets.load(datasetURI);
+          Dataset<GenericRecord> events = Datasets.load(datasetURI);
           return new PNDAKiteWriter(properties, events);
       } catch (DatasetNotFoundException error) {
           throw new RuntimeException(

@@ -44,11 +44,15 @@ public class PNDAKiteWriter implements DataWriter<GenericRecord> {
     private int recordsWritten;
     private int bytesWritten;
 
-    private DatasetWriter writer;
+    private DatasetWriter<GenericRecord> writer;
 
-    public PNDAKiteWriter(State props, Dataset dataset) {
+    private boolean extractedTimestamp;
+    private boolean extractedSource;
+
+    public PNDAKiteWriter(State props, Dataset<GenericRecord> dataset) {
         this.properties = props;
-
+        this.extractedSource = props.getPropAsBoolean(PNDAAbstractConverter.TIMESTAMP_PROPERTY);
+        this.extractedTimestamp = props.getPropAsBoolean(PNDAAbstractConverter.SOURCE_PROPERTY);
         this.recordsWritten = 0;
         this.bytesWritten = 0;
 

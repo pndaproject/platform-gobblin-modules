@@ -40,6 +40,7 @@ dependencies {
     compile 'org.jgrapht:jgrapht-core:0.9.2'
     compile 'org.kitesdk:kite-hadoop-compatibility:1.1.0'
     compile 'com.opencsv:opencsv:3.8'
+    compile 'com.google.protobuf:protobuf-java:3.5.1'
 }
 
 configurations {
