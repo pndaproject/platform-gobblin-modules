@@ -33,7 +33,6 @@ import org.apache.avro.generic.GenericDatumReader;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
-import gobblin.util.EmptyIterable;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 
@@ -46,23 +45,23 @@ import gobblin.converter.SingleRecordIterable;
  *   into an Avro {@link org.apache.avro.generic.GenericRecord}.
  * </p>
  */
-public class PNDAAvroConverter extends PNDAAbstractConverter {
+public class PNDAAvroConverter extends PNDAAbstractConverter<GenericRecord, AvroTopicConfig> {
 
   private GenericDatumReader<Record> reader;
   private static final Logger log = LoggerFactory.getLogger(PNDAAvroConverter.class);
-  private boolean wrap = true; 
+  private boolean wrap = true;
 
   public void close() throws IOException {
     super.close();
   }
+
   private boolean logOnce = true;
 
   @Override
-  public Schema convertSchema(String topic, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public Schema convertSchema(String topic, WorkUnitState workUnit) throws SchemaConversionException {
 
     Schema outputSchema = super.convertSchema(topic, workUnit);
-    AvroTopicConfig avroconfig = (AvroTopicConfig)getConfig();
+    AvroTopicConfig avroconfig = getConfig();
     Schema inputSchema = parseSchema(avroconfig.getSchema());
     /*
      * If the output schema and the input schema are identical
@@ -71,10 +70,8 @@ public class PNDAAvroConverter extends PNDAAbstractConverter {
      * In this case, the record will just be passed trough without wrapping 
      * it in a new envelop. 
      */
-    if( outputSchema.equals(inputSchema) &&
-        avroconfig.hasSource() && SOURCE_FIELD.equals(avroconfig.getSourceField()) &&
-        avroconfig.hasTimeStamp() && TIMESTAMP_FIELD.equals(avroconfig.getTimestampField())
-      ) {
+    if (outputSchema.equals(inputSchema) && avroconfig.hasSource() && SOURCE_FIELD.equals(avroconfig.getSourceField())
+        && avroconfig.hasTimeStamp() && TIMESTAMP_FIELD.equals(avroconfig.getTimestampField())) {
       this.wrap = false;
       log.info("Already wrapped with the output schema.");
     } else {
@@ -88,42 +85,48 @@ public class PNDAAvroConverter extends PNDAAbstractConverter {
   }
 
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema schema, byte[] inputRecord,
-                                               WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecord(Schema schema, byte[] inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
 
-      Decoder binaryDecoder = DecoderFactory.get().binaryDecoder(inputRecord, null);
-      GenericRecord record = null;
+    if (wrap) {
+      return super.convertRecord(schema, inputRecord, workUnit);
+    } else {
       try {
-        record = reader.read(null, binaryDecoder);
-      } catch(IOException | RuntimeException ex) {
-        writeErrorData(inputRecord, "Unable to deserialize data");
-        return new EmptyIterable<GenericRecord>();
+        return new SingleRecordIterable<GenericRecord>(parse(inputRecord));
+      } catch (QuarantineException e) {
+        throw new DataConversionException(e);
       }
-      
-      if(!wrap) {
-        return new SingleRecordIterable<GenericRecord>(record);
-      }
-      if(logOnce) log.debug(String.format("Input record %s", record));
-      AvroTopicConfig avroConfig =(AvroTopicConfig) getConfig(); 
-      Object source = null;
-      Object timestamp = null;
-
-      if(avroConfig.hasSource()) {
-        source = record.get(avroConfig.getSourceField());
-        if(logOnce) log.debug(String.format("Extracted source: %s=%s",avroConfig.getSourceField(),source));
-      }
-      if(avroConfig.hasTimeStamp()) {
-        timestamp = record.get(avroConfig.getTimestampField());
-        if(logOnce) log.debug(String.format("Extracted timestamp: %s=%s", avroConfig.getTimestampField(), timestamp));
-      }
-      record = generateRecord(inputRecord, workUnit, source, timestamp);
-      if(logOnce) log.debug(String.format("Created record %s", record)); 
-      logOnce=false;
-      return new SingleRecordIterable<GenericRecord>(record);
-
     }
-    public boolean valdidateConfig(TopicConfig config) {
-      return (config instanceof AvroTopicConfig);
+  }
+
+  GenericRecord parse(byte[] inputRecord) throws QuarantineException {
+    Decoder binaryDecoder = DecoderFactory.get().binaryDecoder(inputRecord, null);
+    GenericRecord record = null;
+    try {
+      record = reader.read(null, binaryDecoder);
+    } catch (IOException | RuntimeException ex) {
+      throw new QuarantineException("Unable to parse data: " + ex);
     }
+    return record;
+  }
+
+  Object getTimeStamp(GenericRecord record, AvroTopicConfig avroConfig) {
+    Object timestamp = null;
+    if (avroConfig.hasTimeStamp()) {
+      timestamp = record.get(avroConfig.getTimestampField());
+      if (logOnce)
+        log.debug(String.format("Extracted timestamp: %s=%s", avroConfig.getTimestampField(), timestamp));
+    }
+    return timestamp;
+  }
+
+  Object getSource(GenericRecord record, AvroTopicConfig avroConfig) {
+    Object source = null;
+    if (avroConfig.hasSource()) {
+      source = record.get(avroConfig.getSourceField());
+      if (logOnce)
+        log.debug(String.format("Extracted source: %s=%s", avroConfig.getSourceField(), source));
+    }
+    return source;
+  }
 }

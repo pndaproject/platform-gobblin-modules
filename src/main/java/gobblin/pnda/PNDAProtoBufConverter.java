@@ -24,14 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.util.EmptyIterable;
 import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
 
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -52,95 +48,99 @@ import com.google.protobuf.InvalidProtocolBufferException;
  *   into an Avro {@link org.apache.avro.generic.GenericRecord}.
  * </p>
  */
-public class PNDAProtoBufConverter extends PNDAAbstractConverter {
+public class PNDAProtoBufConverter extends PNDAAbstractConverter<Map<FieldDescriptor, Object>, ProtobufTopicConfig> {
 
   private static final Logger log = LoggerFactory.getLogger(PNDAProtoBufConverter.class);
   private Descriptor pbDescriptor = null;
   private FieldDescriptor pbSource = null;
   private FieldDescriptor pbTimestamp = null;
 
-
   public void close() throws IOException {
     super.close();
   }
 
   @Override
-  public Schema convertSchema(String topic, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public Schema convertSchema(String topic, WorkUnitState workUnit) throws SchemaConversionException {
 
-      Schema schema = super.convertSchema(topic, workUnit);
+    Schema schema = super.convertSchema(topic, workUnit);
+    ProtobufTopicConfig protoConfig = getConfig();
 
-      FieldDescriptorProto fb1 = buildField("node_id_str", 1, FieldDescriptorProto.Label.LABEL_OPTIONAL, FieldDescriptorProto.Type.TYPE_STRING);
-      FieldDescriptorProto fb2 = buildField("msg_timestamp", 10, FieldDescriptorProto.Label.LABEL_OPTIONAL, FieldDescriptorProto.Type.TYPE_UINT64);
+    // Construct the proto message type
+    DescriptorProto.Builder mMsgTypeBuilder = DescriptorProto.newBuilder();
+    mMsgTypeBuilder.setName("Telemetry");
 
-      // Construct the proto message type
-      DescriptorProto.Builder mMsgTypeBuilder = DescriptorProto.newBuilder();
-      mMsgTypeBuilder.setName("Telemetry");
+    if(protoConfig.hasSource()) {
+      FieldDescriptorProto fb1 = buildField("node_id_str", protoConfig.getSourceTag(),
+          FieldDescriptorProto.Label.LABEL_OPTIONAL, FieldDescriptorProto.Type.TYPE_STRING);
       mMsgTypeBuilder.addField(fb1);
+    }
+    if(protoConfig.hasTimeStamp()) {
+      FieldDescriptorProto fb2 = buildField("msg_timestamp", protoConfig.getTimestampTag(),
+          FieldDescriptorProto.Label.LABEL_OPTIONAL, FieldDescriptorProto.Type.TYPE_UINT64);
       mMsgTypeBuilder.addField(fb2);
-  
-      // Construct the file proto file
-      FileDescriptorProto.Builder pb = FileDescriptorProto.newBuilder();
-      //pb.setSyntax("proto3");
-      pb.addMessageType(mMsgTypeBuilder);
-      FileDescriptorProto proto = pb.build();
-  
-      // Compile the descriptors
-      try {
-        FileDescriptor[] dependencies = {};
-        FileDescriptor fileDesc = FileDescriptor.buildFrom(proto, dependencies);
-        this.pbDescriptor = fileDesc.findMessageTypeByName("Telemetry");
-        ProtobufTopicConfig protoConfig = (ProtobufTopicConfig)getConfig();
-        if(protoConfig.hasSource()) {
-           this.pbSource = this.pbDescriptor.findFieldByNumber(protoConfig.getSourceTag());
-        }
-        if(protoConfig.hasTimeStamp()) {
-           this.pbTimestamp = this.pbDescriptor.findFieldByNumber(protoConfig.getTimestampTag());
-        }
-      } catch (DescriptorValidationException error) {
-          throw new SchemaConversionException(String.format("Unable to read AVRO schema file %s", error));
+    }
+
+    // Construct the file proto file
+    FileDescriptorProto.Builder pb = FileDescriptorProto.newBuilder();
+    //pb.setSyntax("proto3");
+    pb.addMessageType(mMsgTypeBuilder);
+    FileDescriptorProto proto = pb.build();
+
+    // Compile the descriptors
+    try {
+      FileDescriptor[] dependencies = {};
+      FileDescriptor fileDesc = FileDescriptor.buildFrom(proto, dependencies);
+      this.pbDescriptor = fileDesc.findMessageTypeByName("Telemetry");
+      if (protoConfig.hasSource()) {
+        this.pbSource = this.pbDescriptor.findFieldByNumber(protoConfig.getSourceTag());
       }
-      return schema;
+      if (protoConfig.hasTimeStamp()) {
+        this.pbTimestamp = this.pbDescriptor.findFieldByNumber(protoConfig.getTimestampTag());
+      }
+    } catch (DescriptorValidationException error) {
+      throw new SchemaConversionException(String.format("Unable to read AVRO schema file %s", error));
+    }
+    return schema;
   }
 
-  @Override
-  public Iterable<GenericRecord> convertRecord(Schema schema, byte[] inputRecord,
-                                               WorkUnitState workUnit)
-      throws DataConversionException {
-
-      // Parse the message
-      try {
-        DynamicMessage dmsg = DynamicMessage.parseFrom(this.pbDescriptor, inputRecord);
-        // Extract the know fields
-        Map<FieldDescriptor,Object> map = dmsg.getAllFields();
-        Object source = null;
-        Object timestamp = null;
-        if(null != pbSource) {
-          source = map.get(pbSource);
-          log.info("Extracted [" + pbSource.getNumber() + "]: " + source);
-        }
-        if(null != pbTimestamp) {
-          timestamp = map.get(pbTimestamp);
-          log.info("Extracted [" + pbTimestamp.getNumber() + "]: " + timestamp);
-        }
-        return new SingleRecordIterable<GenericRecord>(generateRecord(inputRecord, workUnit, source, timestamp));
-      } catch (InvalidProtocolBufferException error) {
-          log.error("InvalidProtocolBufferException: "+error);
-          writeErrorData(inputRecord, "Unable to deserialize protobuf data");
-          return new EmptyIterable<GenericRecord>();
-      }
+  Map<FieldDescriptor, Object> parse(byte[] inputRecord) throws QuarantineException {
+    DynamicMessage dmsg;
+    try {
+      dmsg = DynamicMessage.parseFrom(this.pbDescriptor, inputRecord);
+      // Extract the know fields
+      Map<FieldDescriptor, Object> map = dmsg.getAllFields();
+      return map;
+    } catch (InvalidProtocolBufferException e) {
+      log.error("InvalidProtocolBufferException: " + e);
+      throw new QuarantineException("Unable to parse protobuf data: " + e);
+    }
   }
 
-  private static FieldDescriptorProto buildField(String name, int tag, FieldDescriptorProto.Label label, FieldDescriptorProto.Type type) {
+  Object getTimeStamp(Map<FieldDescriptor, Object> map, ProtobufTopicConfig config) {
+    Object timestamp = null;
+    if (null != pbTimestamp) {
+      timestamp = map.get(pbTimestamp);
+      log.info("Extracted [" + pbTimestamp.getNumber() + "]: " + timestamp);
+    }
+    return timestamp;
+  }
+
+  Object getSource(Map<FieldDescriptor, Object> map, ProtobufTopicConfig config) {
+    Object source = null;
+    if (null != pbSource) {
+      source = map.get(pbSource);
+      log.info("Extracted [" + pbSource.getNumber() + "]: " + source);
+    }
+    return source;
+  }
+
+  private static FieldDescriptorProto buildField(String name, int tag, FieldDescriptorProto.Label label,
+      FieldDescriptorProto.Type type) {
     FieldDescriptorProto.Builder fb = FieldDescriptorProto.newBuilder();
     fb.setType(type);
     fb.setLabel(label);
     fb.setName(name);
     fb.setNumber(tag);
     return fb.build();
-  }
-
-  public boolean valdidateConfig(TopicConfig config) {
-    return (config instanceof ProtobufTopicConfig);
   }
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package gobblin.pnda;
 
 import java.io.IOException;
 
@@ -25,11 +25,15 @@ import org.apache.avro.generic.GenericRecord;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import gobblin.writer.DataWriter;
+import gobblin.writer.FsDataWriterBuilder;
+import gobblin.writer.WriterOutputFormat;
 
 /**
  * A {@link DataWriterBuilder} for building {@link DataWriter} that writes in Avro format.
  *
  * @author Yinan Li
+ * @author Stephane Lejeune
  */
 public class AvroDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
 
@@ -41,10 +45,10 @@ public class AvroDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRe
     Preconditions.checkArgument(this.format == WriterOutputFormat.AVRO);
 
     switch (this.destination.getType()) {
-      case HDFS:
-        return new AvroHdfsDataWriter(this, this.destination.getProperties());
-      default:
-        throw new RuntimeException("Unknown destination type: " + this.destination.getType());
+    case HDFS:
+      return new AvroHdfsDataWriter(this, this.destination.getProperties());
+    default:
+      throw new RuntimeException("Unknown destination type: " + this.destination.getType());
     }
   }
 }

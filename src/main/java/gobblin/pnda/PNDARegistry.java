@@ -17,6 +17,8 @@
 
 package gobblin.pnda;
 
+import java.util.Base64;
+
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -29,22 +31,24 @@ class PNDARegistry {
 
   static final TopicConfig NOCONFIG = new noconfig();
 
+  
+
   static TopicConfig getConfig(String topic) {
-      if (topic.startsWith("protobuf.example")) {
+      if (topic.startsWith("protobuf.telemetry")) {
           return new ProtobufTopicConfig(1,10);
       } else if (topic.startsWith("protobuf.notime")) {
         return new ProtobufTopicConfig(1,-1);
       } else if (topic.startsWith("protobuf.nosource")) {
         return new ProtobufTopicConfig(-1,10);
-      } else if (topic.startsWith("protobuf.nono")) {
+      } else if (topic.startsWith("protobuf.nomapping")) {
         return new ProtobufTopicConfig(-1,-1);
-      } else if (topic.startsWith("avro.example")) {
+      } else if (topic.startsWith("avro.pnda")) {
         return new AvroTopicConfig("src", "timestamp", pndaSchema);
       } else if (topic.startsWith("avro.notime")) {
         return new AvroTopicConfig("src", null, pndaSchema);
       } else if (topic.startsWith("avro.nosource")) {
         return new AvroTopicConfig(null, "timestamp", pndaSchema);
-      } else if (topic.startsWith("avro.nono")) {
+      } else if (topic.startsWith("avro.nomapping")) {
         return new AvroTopicConfig(null, null, pndaSchema);
       } else if (topic.startsWith("avro.1example")) {
         return new AvroTopicConfig("src1", "timestamp1", otherSchema);
@@ -52,7 +56,7 @@ class PNDARegistry {
         return new AvroTopicConfig("src1", null, otherSchema);
       } else if (topic.startsWith("avro.1nosource")) {
         return new AvroTopicConfig(null, "timestamp1", otherSchema);
-      } else if (topic.startsWith("avro.1nono")) {
+      } else if (topic.startsWith("avro.1nomapping")) {
         return new AvroTopicConfig(null, null, otherSchema);
       } else {
           return NOCONFIG;
@@ -71,7 +75,7 @@ class PNDARegistry {
     "]"+
     "}";
 
-    private static String otherSchema = "{"+
+  private static String otherSchema = "{"+
     "\"namespace\": \"pnda.entity\","+
     "\"type\": \"record\","+
     "\"name\": \"event\","+
@@ -89,9 +93,9 @@ abstract class TopicConfig {
 
     public abstract String getConverterClass();
 
-    public byte[] getFamilyID() {
+    public String getFamilyID() {
         try {
-          return MessageDigest.getInstance("MD5").digest(toString().getBytes("UTF-8"));
+          return new String(Base64.getEncoder().encode(MessageDigest.getInstance("MD5").digest(toString().getBytes("UTF-8"))));
         } catch (UnsupportedEncodingException | NoSuchAlgorithmException e) {
             throw new IllegalStateException("Unexpected error trying to convert schema to bytes", e);
         }

@@ -15,10 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package gobblin.pnda;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
@@ -37,6 +40,8 @@ import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.WriterUtils;
 
+import gobblin.writer.FsDataWriter;
+import gobblin.writer.FsDataWriterBuilder;
 
 /**
  * An extension to {@link FsDataWriter} that writes in Avro format in the form of {@link GenericRecord}s.
@@ -47,6 +52,7 @@ import gobblin.util.WriterUtils;
  * </p>
  *
  * @author Yinan Li
+ * @author Stephane Lejeune
  */
 public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
 
@@ -54,6 +60,8 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   private final OutputStream stagingFileOutputStream;
   private final DatumWriter<GenericRecord> datumWriter;
   private final DataFileWriter<GenericRecord> writer;
+  private final Map<String, String> metadata;
+  public static final String WRITER_FILE_AVRO_METADATA = "writer.file.avro.metadata";
 
   // Number of records successfully written
   protected final AtomicLong count = new AtomicLong(0);
@@ -68,6 +76,7 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
             .getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, this.numBranches, this.branchId))));
 
     this.schema = builder.getSchema();
+    this.metadata = collectMetadata(state);
     this.stagingFileOutputStream = createStagingFileOutputStream();
     this.datumWriter = new GenericDatumWriter<>();
     this.writer = this.closer.register(createDataFileWriter(codecFactory));
@@ -101,9 +110,16 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
     @SuppressWarnings("resource")
     DataFileWriter<GenericRecord> writer = new DataFileWriter<>(this.datumWriter);
     writer.setCodec(codecFactory);
-
+    this.metadata.forEach((key, value) -> writer.setMeta(key, value));
     // Open the file and return the DataFileWriter
     return writer.create(this.schema, this.stagingFileOutputStream);
+  }
+
+  private static Map<String, String> collectMetadata(State state) {
+    Map<String, String> map = new HashMap<String, String>();
+    List<String> keys = state.getPropAsList(WRITER_FILE_AVRO_METADATA);
+    keys.forEach((key) -> map.put(key, state.getProp(key)));
+    return map;
   }
 
   @Override
