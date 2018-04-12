@@ -40,10 +40,7 @@ import org.slf4j.LoggerFactory;
  *   into an Avro {@link org.apache.avro.generic.GenericRecord}.
  * </p>
  */
-public class PNDARegistryBasedConverter extends Converter<String,
-                                                    Schema,
-                                                    byte[],
-                                                    GenericRecord> {
+public class PNDARegistryBasedConverter extends Converter<String, Schema, byte[], GenericRecord> {
 
   private PNDAAbstractConverter delegate = null;
   private static final Logger log = LoggerFactory.getLogger(PNDARegistryBasedConverter.class);
@@ -57,35 +54,34 @@ public class PNDARegistryBasedConverter extends Converter<String,
   }
 
   @Override
-  public Schema convertSchema(String inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public Schema convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
 
-      TopicConfig config = PNDARegistry.getConfig(inputSchema);
-      String className = (config==null)?null:config.getConverterClass();
-      if(null != className) {
-        try {
-          Class<?> clazz = Class.forName(className);
-          Constructor<?> ctor = clazz.getConstructor();
-          delegate = (PNDAAbstractConverter)ctor.newInstance();
-          log.info("Setting delegate Converter to "+className);
-        } catch (ClassNotFoundException | InstantiationException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-          throw new SchemaConversionException(
+    TopicConfig config = PNDARegistry.getConfig(inputSchema);
+    String className = (config == null) ? null : config.getConverterClass();
+    if (null != className) {
+      try {
+        Class<?> clazz = Class.forName(className);
+        Constructor<?> ctor = clazz.getConstructor();
+        delegate = (PNDAAbstractConverter) ctor.newInstance();
+        log.info("Setting delegate Converter to " + className);
+      } catch (ClassNotFoundException | InstantiationException | NoSuchMethodException | IllegalAccessException
+          | InvocationTargetException e) {
+        throw new SchemaConversionException(
             String.format("Failed to instantiate delegate class '%s': %s", className, e));
-        }
-      } else {
-        // If no Converter is defined, just wrap everything in the PNDA envelop
-        // without extracting any values from the input.
-        delegate = new PNDAFallbackConverter();
-        log.info("Setting delegate Converter to PNDAFallbackConverter");
       }
-      delegate.init(workUnit, config);
-      return delegate.convertSchema(inputSchema, workUnit);
-}
+    } else {
+      // If no Converter is configured, records will be wrapped in the PNDA envelop
+      // without extracting any values from the input.
+      delegate = new PNDAFallbackConverter();
+      log.info("Setting delegate Converter to PNDAFallbackConverter");
+    }
+    delegate.init(workUnit, config);
+    return delegate.convertSchema(inputSchema, workUnit);
+  }
 
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema schema, byte[] inputRecord,
-                                               WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecord(Schema schema, byte[] inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-        return delegate.convertRecord(schema, inputRecord, workUnit);
+    return delegate.convertRecord(schema, inputRecord, workUnit);
   }
 }

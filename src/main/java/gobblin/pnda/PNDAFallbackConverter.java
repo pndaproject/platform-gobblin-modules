@@ -20,13 +20,10 @@ package gobblin.pnda;
 import java.io.IOException;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
 
 /**
  * An implementation of {@link Converter}.
@@ -37,26 +34,27 @@ import gobblin.converter.SingleRecordIterable;
  *   into an Avro {@link org.apache.avro.generic.GenericRecord}.
  * </p>
  */
-public class PNDAFallbackConverter extends PNDAAbstractConverter {
+public class PNDAFallbackConverter extends PNDAAbstractConverter<Object, TopicConfig> {
 
   public void close() throws IOException {
     super.close();
   }
 
   @Override
-  public Schema convertSchema(String inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public Schema convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     return super.convertSchema(inputSchema, workUnit);
   }
 
-  @Override
-  public Iterable<GenericRecord> convertRecord(Schema schema, byte[] inputRecord,
-                                               WorkUnitState workUnit)
-      throws DataConversionException {
-          return new SingleRecordIterable<GenericRecord>(generateRecord(inputRecord, workUnit, null, null));
+  Object parse(byte[] inputRecord) {
+    return new Object();
   }
-  
-  public boolean valdidateConfig(TopicConfig config) {
-      return true;
+
+  Object getTimeStamp(Object record, TopicConfig config) {
+    return null;
   }
+
+  Object getSource(Object record, TopicConfig config) {
+    return null;
+  }
+
 }

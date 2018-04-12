@@ -19,6 +19,7 @@ package gobblin.pnda;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -30,10 +31,13 @@ import org.kitesdk.data.Datasets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.util.EmptyIterable;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.SchemaConversionException;
+import gobblin.converter.DataConversionException;
+import gobblin.converter.SingleRecordIterable;
 
 /**
  * An implementation of {@link Converter}.
@@ -44,10 +48,8 @@ import gobblin.converter.SchemaConversionException;
  *   into an Avro {@link org.apache.avro.generic.GenericRecord}.
  * </p>
  */
-public abstract class PNDAAbstractConverter extends Converter<String,
-                                              Schema,
-                                              byte[],
-                                              GenericRecord> {
+public abstract class PNDAAbstractConverter<D, C extends TopicConfig>
+    extends Converter<String, Schema, byte[], GenericRecord> {
 
   private static final Logger log = LoggerFactory.getLogger(PNDAAbstractConverter.class);
 
@@ -55,51 +57,43 @@ public abstract class PNDAAbstractConverter extends Converter<String,
   public static final String KITE_ERROR_DATASET_URI = "PNDA.quarantine.dataset.uri";
   public static final String TIMESTAMP_FIELD = "timestamp";
   public static final String SOURCE_FIELD = "src";
-  public static final String TIMESTAMP_PROPERTY = "pnda.timestamp.extracted";
-  public static final String SOURCE_PROPERTY = "pnda.source.extracted";
+  public static final String TIMESTAMP_PROPERTY = "pnda.field.timestamp.extracted";
+  public static final String SOURCE_PROPERTY = "pnda.field.source.extracted";
+  public static final String FAMILY_ID_PROPERTY = "pnda.family_id";
 
   private long loggedErrors;
   public static final long MAX_LOGGED_ERRORS = 10;
   private DatasetWriter<GenericRecord> errorWriter = null;
   private Schema errorSchema = null;
-  
+
   protected Schema outputSchema = null;
   protected String topic = null;
-  private TopicConfig config = null;
+  private C config = null;
 
-  
-
-  protected TopicConfig getConfig() {
+  protected C getConfig() {
     return config;
   }
 
-  protected abstract boolean valdidateConfig(TopicConfig config);
-
-  public PNDAAbstractConverter init(WorkUnitState workUnit, TopicConfig config) {
-    if(!valdidateConfig(config)) {
-      log.error(String.format("Invalid configuration: "+config));
-      return null;
-    }
+  public PNDAAbstractConverter<D, C> init(WorkUnitState workUnit, C config) {
     this.config = config;
-    workUnit.setProp(TIMESTAMP_PROPERTY, new Boolean(config.hasTimeStamp()));
-    workUnit.setProp(SOURCE_PROPERTY, new Boolean(config.hasTimeStamp()));
+    setProp(workUnit, TIMESTAMP_PROPERTY, new Boolean(config.hasTimeStamp()));
+    setProp(workUnit, SOURCE_PROPERTY, new Boolean(config.hasSource()));
+    setProp(workUnit, FAMILY_ID_PROPERTY, config.getFamilyID());
     this.loggedErrors = 0;
     String errorDatasetUri = workUnit.getProp(KITE_ERROR_DATASET_URI);
     if (errorDatasetUri != null) {
       try {
-        Dataset quarantine = Datasets.load(errorDatasetUri);
+        Dataset<GenericRecord> quarantine = Datasets.load(errorDatasetUri);
         this.errorSchema = quarantine.getDescriptor().getSchema();
         this.errorWriter = quarantine.newWriter();
       } catch (DatasetNotFoundException error) {
-        log.error(String.format("Unable to load Quarantine Dataset at %s. Bad data will be ignored",
-                                errorDatasetUri));
+        log.error(String.format("Unable to load Quarantine Dataset at %s. Bad data will be ignored", errorDatasetUri));
       }
     } else {
-      log.error(String.format("'%s' configuration property not set. Bad data "
-                              + "will be ignored", KITE_ERROR_DATASET_URI));
+      log.error(
+          String.format("'%s' configuration property not set. Bad data " + "will be ignored", KITE_ERROR_DATASET_URI));
     }
-    log.info(String.format("Messages that are not in the PNDA format will "
-                           + "be written to '%s'", errorDatasetUri));
+    log.info(String.format("Messages that are not in the PNDA format will " + "be written to '%s'", errorDatasetUri));
     return this;
   }
 
@@ -110,8 +104,7 @@ public abstract class PNDAAbstractConverter extends Converter<String,
   }
 
   @Override
-  public Schema convertSchema(String topic, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public Schema convertSchema(String topic, WorkUnitState workUnit) throws SchemaConversionException {
     /*
      * In our case, the source is a KafkaSimpleExtractor which give the topic
      * name as the inputSchema, this is not a AVRO schema.
@@ -124,8 +117,7 @@ public abstract class PNDAAbstractConverter extends Converter<String,
     Schema schema = null;
     if (sourceSchema == null || sourceSchema.isEmpty()) {
       throw new IllegalArgumentException(
-                  String.format("%s configuration parameter cannot be empty",
-                                ConfigurationKeys.SOURCE_SCHEMA));
+          String.format("%s configuration parameter cannot be empty", ConfigurationKeys.SOURCE_SCHEMA));
     }
     if (sourceSchema.startsWith("{")) {
       log.info(String.format("Using the following AVRO schema: %s", sourceSchema));
@@ -135,8 +127,7 @@ public abstract class PNDAAbstractConverter extends Converter<String,
       try {
         new Schema.Parser().parse(new File(sourceSchema));
       } catch (IOException error) {
-        throw new SchemaConversionException(
-                        String.format("Unable to read AVRO schema file %s", error));
+        throw new SchemaConversionException(String.format("Unable to read AVRO schema file %s", error));
       }
     }
     return schema;
@@ -150,11 +141,10 @@ public abstract class PNDAAbstractConverter extends Converter<String,
     /* Only log at most MAX_LOGGED_ERRORS messages */
     loggedErrors++;
     if (loggedErrors < MAX_LOGGED_ERRORS) {
-      log.error(String.format("A record from topic '%s' was not deserizable,"
-                              + "it was put in quarantine", this.topic));
+      log.error(
+          String.format("A record from topic '%s' was not deserizable," + "it was put in quarantine", this.topic));
     } else if (loggedErrors == MAX_LOGGED_ERRORS) {
-      log.error(String.format("Stopping logging deserialization errors "
-                              + "after %d messages", MAX_LOGGED_ERRORS));
+      log.error(String.format("Stopping logging deserialization errors " + "after %d messages", MAX_LOGGED_ERRORS));
     }
     GenericRecord errorRecord = new GenericData.Record(errorSchema);
 
@@ -166,16 +156,66 @@ public abstract class PNDAAbstractConverter extends Converter<String,
     this.errorWriter.write(errorRecord);
   }
 
-  protected GenericRecord generateRecord(byte[] inputRecord, WorkUnitState workUnit, Object source, Object timestamp) {
-    Object rSource = (null == source) ? topic : source;
-    Object rTimestamp = (null == timestamp) ? new Long(System.currentTimeMillis()) : timestamp;
+  @Override
+  public Iterable<GenericRecord> convertRecord(Schema schema, byte[] inputRecord, WorkUnitState workUnit)
+      throws DataConversionException {
+
+    D parsedRecord = null;
+    try {
+      parsedRecord = parse(inputRecord);
+    } catch (QuarantineException e) {
+      writeErrorData(inputRecord, e.getReason());
+    }
+
+    if (null == parsedRecord) {
+      // Data has been quaranteened, we are done here.
+      return new EmptyIterable<GenericRecord>();
+    }
+
+    Object rSource = getSource(parsedRecord, config);
+    rSource = (null == rSource) ? topic : rSource;
+    Object rTimestamp = getTimeStamp(parsedRecord, config);
+    rTimestamp = (null == rTimestamp) ? new Long(System.currentTimeMillis()) : rTimestamp;
 
     GenericRecord record = new GenericData.Record(outputSchema);
     record.put(TIMESTAMP_FIELD, rTimestamp);
     record.put(SOURCE_FIELD, rSource);
     record.put("host_ip", "0.0.0.0");
-    record.put("rawdata", inputRecord);
-    return record;
+    record.put("rawdata", ByteBuffer.wrap(inputRecord));
+    return new SingleRecordIterable<GenericRecord>(record);
+  }
+
+  abstract D parse(byte[] inputRecord) throws QuarantineException;
+
+  abstract Object getTimeStamp(D record, C config);
+
+  abstract Object getSource(D record, C config);
+
+  private static void setProp(WorkUnitState workUnit, String key, Object value) {
+    workUnit.setProp(key, value);
+    String props = workUnit.getProp(AvroHdfsDataWriter.WRITER_FILE_AVRO_METADATA);
+    // Add this key to the list of properties to be witten in the Avro meta data header.
+    if (null == props) {
+      workUnit.setProp(AvroHdfsDataWriter.WRITER_FILE_AVRO_METADATA, key);
+    } else {
+      workUnit.setProp(AvroHdfsDataWriter.WRITER_FILE_AVRO_METADATA, props + "," + key);
+    }
+  }
+}
+
+class QuarantineException extends Exception {
+  private static final long serialVersionUID = -6103104588164917107L;
+  private final String reason;
+
+  QuarantineException(String reason) {
+    this.reason = reason;
+  }
+
+  /**
+   * @return the reason
+   */
+  public String getReason() {
+    return reason;
   }
 
 }
