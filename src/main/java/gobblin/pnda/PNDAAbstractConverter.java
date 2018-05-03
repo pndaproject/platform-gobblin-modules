@@ -39,6 +39,8 @@ import gobblin.converter.SchemaConversionException;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SingleRecordIterable;
 
+import gobblin.pnda.registry.TopicConfig;
+
 /**
  * An implementation of {@link Converter}.
  *
@@ -59,7 +61,8 @@ public abstract class PNDAAbstractConverter<D, C extends TopicConfig>
   public static final String SOURCE_FIELD = "src";
   public static final String TIMESTAMP_PROPERTY = "pnda.field.timestamp.extracted";
   public static final String SOURCE_PROPERTY = "pnda.field.source.extracted";
-  public static final String FAMILY_ID_PROPERTY = "pnda.family_id";
+  public static final String FAMILY_ID_PROPERTY = "pnda.family.id";
+  public static final String PNDA_CONVERTER_SCHEMA = "PNDA.converter.schema";
 
   private long loggedErrors;
   public static final long MAX_LOGGED_ERRORS = 10;
@@ -110,14 +113,14 @@ public abstract class PNDAAbstractConverter<D, C extends TopicConfig>
      * name as the inputSchema, this is not a AVRO schema.
      */
     this.topic = topic;
-    return this.outputSchema = parseSchema(workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA));
+    return this.outputSchema = parseSchema(workUnit.getProp(PNDA_CONVERTER_SCHEMA));
   }
 
   protected Schema parseSchema(String sourceSchema) throws SchemaConversionException {
     Schema schema = null;
     if (sourceSchema == null || sourceSchema.isEmpty()) {
       throw new IllegalArgumentException(
-          String.format("%s configuration parameter cannot be empty", ConfigurationKeys.SOURCE_SCHEMA));
+          String.format("Schema configuration parameter missing or empty"));
     }
     if (sourceSchema.startsWith("{")) {
       log.info(String.format("Using the following AVRO schema: %s", sourceSchema));
@@ -185,21 +188,37 @@ public abstract class PNDAAbstractConverter<D, C extends TopicConfig>
     return new SingleRecordIterable<GenericRecord>(record);
   }
 
+  /** 
+   * Parses an input data record to an output data record for future data extraction
+   * @param inputRecord the input data record to be parsed
+   * @return the parsed output data record 
+   */
   abstract D parse(byte[] inputRecord) throws QuarantineException;
 
+  /**
+   * Extracts the timestamp data from the parsed input data record
+   * @param record the input data record
+   * @param config the configuration associated to the data
+   * @return the timestamp data extracted from the input data record, 
+   *         in millis since the epoch (1970-01-01 UTC).
+   */
   abstract Object getTimeStamp(D record, C config);
 
+  /**
+   * Extracts the source data from the parsed input data record
+   * @param record the input data record
+   * @param config the configuration associated to the data
+   * @return the source data extracted from the input data record
+   */
   abstract Object getSource(D record, C config);
 
   private static void setProp(WorkUnitState workUnit, String key, Object value) {
+    if (null == value) return;
+
     workUnit.setProp(key, value);
     String props = workUnit.getProp(AvroHdfsDataWriter.WRITER_FILE_AVRO_METADATA);
     // Add this key to the list of properties to be witten in the Avro meta data header.
-    if (null == props) {
-      workUnit.setProp(AvroHdfsDataWriter.WRITER_FILE_AVRO_METADATA, key);
-    } else {
-      workUnit.setProp(AvroHdfsDataWriter.WRITER_FILE_AVRO_METADATA, props + "," + key);
-    }
+    workUnit.setProp(AvroHdfsDataWriter.WRITER_FILE_AVRO_METADATA, (null == props) ? key : props+","+key);
   }
 }
 

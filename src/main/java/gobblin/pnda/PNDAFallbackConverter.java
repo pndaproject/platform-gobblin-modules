@@ -25,6 +25,9 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.SchemaConversionException;
 
+import gobblin.pnda.registry.TopicConfig;
+
+
 /**
  * An implementation of {@link Converter}.
  *

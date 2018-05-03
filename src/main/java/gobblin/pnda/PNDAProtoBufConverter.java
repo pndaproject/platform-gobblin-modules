@@ -39,6 +39,8 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import gobblin.pnda.registry.ProtobufTopicConfig;
+
 /**
  * An implementation of {@link Converter}.
  *

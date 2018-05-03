@@ -31,6 +31,10 @@ import gobblin.converter.SchemaConversionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.pnda.registry.TopicConfig;
+import gobblin.pnda.registry.PNDARegistry;
+import gobblin.pnda.registry.GobblinConfigRegistry;
+
 /**
  * An implementation of {@link Converter}.
  *
@@ -42,7 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 public class PNDARegistryBasedConverter extends Converter<String, Schema, byte[], GenericRecord> {
 
-  private PNDAAbstractConverter delegate = null;
+  private PNDAAbstractConverter<?, TopicConfig> delegate = null;
   private static final Logger log = LoggerFactory.getLogger(PNDARegistryBasedConverter.class);
 
   public PNDARegistryBasedConverter init(WorkUnitState workUnit) {
@@ -57,12 +61,16 @@ public class PNDARegistryBasedConverter extends Converter<String, Schema, byte[]
   public Schema convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
 
     TopicConfig config = PNDARegistry.getConfig(inputSchema);
+    if (config == TopicConfig.NOCONFIG) {
+        config = GobblinConfigRegistry.getConfig(inputSchema, workUnit);
+    }
+
     String className = (config == null) ? null : config.getConverterClass();
     if (null != className) {
       try {
         Class<?> clazz = Class.forName(className);
         Constructor<?> ctor = clazz.getConstructor();
-        delegate = (PNDAAbstractConverter) ctor.newInstance();
+        delegate = (PNDAAbstractConverter<?, TopicConfig>) ctor.newInstance();
         log.info("Setting delegate Converter to " + className);
       } catch (ClassNotFoundException | InstantiationException | NoSuchMethodException | IllegalAccessException
           | InvocationTargetException e) {
