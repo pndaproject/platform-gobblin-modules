@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - PNDA-4384: Add a Registry based Converter implementation
 - PNDA-4464: (PDP-2) Experimental support for protobuf and user defined avro schemas for ingest
+- PNDA-4553: Add configuration registry based on Gobblin configuration  
 
 ## [0.1.0] 2018-02-10
 ### Added
