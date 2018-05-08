@@ -36,6 +36,8 @@ import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 
+import gobblin.pnda.registry.AvroTopicConfig;
+
 /**
  * An implementation of {@link Converter}.
  *
@@ -58,7 +60,8 @@ public class PNDAAvroConverter extends PNDAAbstractConverter<GenericRecord, Avro
   private boolean logOnce = true;
 
   @Override
-  public Schema convertSchema(String topic, WorkUnitState workUnit) throws SchemaConversionException {
+  public Schema convertSchema(String topic, WorkUnitState workUnit)
+      throws SchemaConversionException {
 
     Schema outputSchema = super.convertSchema(topic, workUnit);
     AvroTopicConfig avroconfig = getConfig();
@@ -70,8 +73,10 @@ public class PNDAAvroConverter extends PNDAAbstractConverter<GenericRecord, Avro
      * In this case, the record will just be passed trough without wrapping 
      * it in a new envelop. 
      */
-    if (outputSchema.equals(inputSchema) && avroconfig.hasSource() && SOURCE_FIELD.equals(avroconfig.getSourceField())
-        && avroconfig.hasTimeStamp() && TIMESTAMP_FIELD.equals(avroconfig.getTimestampField())) {
+    if( outputSchema.equals(inputSchema) &&
+        avroconfig.hasSource() && SOURCE_FIELD.equals(avroconfig.getSourceField()) &&
+        avroconfig.hasTimeStamp() && TIMESTAMP_FIELD.equals(avroconfig.getTimestampField())
+      ) {
       this.wrap = false;
       log.info("Already wrapped with the output schema.");
     } else {
@@ -85,8 +90,9 @@ public class PNDAAvroConverter extends PNDAAbstractConverter<GenericRecord, Avro
   }
 
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema schema, byte[] inputRecord, WorkUnitState workUnit)
-      throws DataConversionException {
+  public Iterable<GenericRecord> convertRecord(Schema schema, byte[] inputRecord,
+          WorkUnitState workUnit)
+  throws DataConversionException {
 
     if (wrap) {
       return super.convertRecord(schema, inputRecord, workUnit);
