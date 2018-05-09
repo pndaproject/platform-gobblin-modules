@@ -58,7 +58,7 @@ public abstract class PNDAAbstractConverter<D, C extends TopicConfig>
   /* Error handling attributes */
   public static final String KITE_ERROR_DATASET_URI = "PNDA.quarantine.dataset.uri";
   public static final String TIMESTAMP_FIELD = "timestamp";
-  public static final String SOURCE_FIELD = "src";
+  public static final String SOURCE_FIELD = "source";
   public static final String TIMESTAMP_PROPERTY = "pnda.field.timestamp.extracted";
   public static final String SOURCE_PROPERTY = "pnda.field.source.extracted";
   public static final String FAMILY_ID_PROPERTY = "pnda.family.id";
@@ -183,7 +183,6 @@ public abstract class PNDAAbstractConverter<D, C extends TopicConfig>
     GenericRecord record = new GenericData.Record(outputSchema);
     record.put(TIMESTAMP_FIELD, rTimestamp);
     record.put(SOURCE_FIELD, rSource);
-    record.put("host_ip", "0.0.0.0");
     record.put("rawdata", ByteBuffer.wrap(inputRecord));
     return new SingleRecordIterable<GenericRecord>(record);
   }
