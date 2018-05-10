@@ -37,7 +37,7 @@ public class PNDATimeBasedAvroWriterPartitioner extends TimeBasedAvroWriterParti
 
   public GenericRecord partitionForRecord(GenericRecord record) {
     GenericRecord partition = super.partitionForRecord(record);
-    partition.put(PREFIX, prefix + record.get("src"));
+    partition.put(PREFIX, prefix + record.get("source"));
     return partition;
   }
 }
