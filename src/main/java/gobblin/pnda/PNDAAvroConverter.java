@@ -30,6 +30,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumReader;
 
+import gobblin.util.EmptyIterable;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -100,9 +101,10 @@ public class PNDAAvroConverter extends PNDAAbstractConverter<GenericRecord, Avro
       try {
         return new SingleRecordIterable<GenericRecord>(parse(inputRecord));
       } catch (QuarantineException e) {
-        throw new DataConversionException(e);
+        writeErrorData(inputRecord, e.getReason());
       }
     }
+    return new EmptyIterable<GenericRecord>();
   }
 
   GenericRecord parse(byte[] inputRecord) throws QuarantineException {
