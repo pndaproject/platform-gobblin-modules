@@ -79,8 +79,8 @@ public abstract class PNDAAbstractConverter<D, C extends TopicConfig>
 
   public PNDAAbstractConverter<D, C> init(WorkUnitState workUnit, C config) {
     this.config = config;
-    setProp(workUnit, TIMESTAMP_PROPERTY, new Boolean(config.hasTimeStamp()));
-    setProp(workUnit, SOURCE_PROPERTY, new Boolean(config.hasSource()));
+    setProp(workUnit, TIMESTAMP_PROPERTY, Boolean.valueOf(config.hasTimeStamp()));
+    setProp(workUnit, SOURCE_PROPERTY, Boolean.valueOf(config.hasSource()));
     setProp(workUnit, FAMILY_ID_PROPERTY, config.getFamilyID());
     this.loggedErrors = 0;
     String errorDatasetUri = workUnit.getProp(KITE_ERROR_DATASET_URI);
@@ -178,7 +178,7 @@ public abstract class PNDAAbstractConverter<D, C extends TopicConfig>
     Object rSource = getSource(parsedRecord, config);
     rSource = (null == rSource) ? topic : rSource;
     Object rTimestamp = getTimeStamp(parsedRecord, config);
-    rTimestamp = (null == rTimestamp) ? new Long(System.currentTimeMillis()) : rTimestamp;
+    rTimestamp = (null == rTimestamp) ? Long.valueOf(System.currentTimeMillis()) : rTimestamp;
 
     GenericRecord record = new GenericData.Record(outputSchema);
     record.put(TIMESTAMP_FIELD, rTimestamp);

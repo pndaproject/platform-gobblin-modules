@@ -67,6 +67,9 @@ public class GobblinConfigRegistry {
                     }
                     config = new ProtobufTopicConfig(topic, familyId, sourceTag, timestampTag);
                     break;
+                default:
+                	// TopicConfig.NOCONFIG;
+                	break;
             }
         } else {
             config = new FallbackTopicConfig(topic, familyId);

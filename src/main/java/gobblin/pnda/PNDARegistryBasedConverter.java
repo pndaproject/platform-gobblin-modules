@@ -65,13 +65,18 @@ public class PNDARegistryBasedConverter extends Converter<String, Schema, byte[]
         config = GobblinConfigRegistry.getConfig(inputSchema, workUnit);
     }
 
-    String className = (config == null) ? null : config.getConverterClass();
+    String className = config.getConverterClass();
     if (null != className) {
       try {
         Class<?> clazz = Class.forName(className);
         Constructor<?> ctor = clazz.getConstructor();
-        delegate = (PNDAAbstractConverter<?, TopicConfig>) ctor.newInstance();
+        
+        @SuppressWarnings("unchecked")
+        PNDAAbstractConverter<?, TopicConfig> converter = (PNDAAbstractConverter<?, TopicConfig>) ctor.newInstance();
+        delegate = converter;
+        
         log.info("Setting delegate Converter to " + className);
+        
       } catch (ClassNotFoundException | InstantiationException | NoSuchMethodException | IllegalAccessException
           | InvocationTargetException e) {
         throw new SchemaConversionException(

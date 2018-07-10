@@ -57,10 +57,6 @@ public class PNDAProtoBufConverter extends PNDAAbstractConverter<Map<FieldDescri
   private FieldDescriptor pbSource = null;
   private FieldDescriptor pbTimestamp = null;
 
-  public void close() throws IOException {
-    super.close();
-  }
-
   @Override
   public Schema convertSchema(String topic, WorkUnitState workUnit) throws SchemaConversionException {
 
