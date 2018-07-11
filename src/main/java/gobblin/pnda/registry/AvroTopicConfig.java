@@ -40,10 +40,10 @@ public class AvroTopicConfig extends TopicConfig {
         return sourceField;
     }
 
-    public boolean hasSource() {return (null!=getSourceField());}
-    public boolean hasTimeStamp() {return (null!=getTimestampField());}
-    public String getSchema() { return schema;}
+    public boolean hasSource() { return null != getSourceField(); }
+    public boolean hasTimeStamp() { return null != getTimestampField(); }
+    public String getSchema() { return schema; }
     public String toString() {
-        return getConverterClass()+getTimestampField()+getSourceField();
+        return getConverterClass() + getTimestampField() + getSourceField();
     }
 }

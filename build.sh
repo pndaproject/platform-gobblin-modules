@@ -27,7 +27,7 @@ cd ${BASE}
 
 # Build
 mkdir -p pnda-build
-./gradlew build -Pversion=${VERSION}
+./gradlew clean findBugsMain pmdMain build -Pversion=${VERSION}
 cd build/libs
 tar -cvf gobblin-PNDA-${VERSION}.tar.gz *
 cd $BASE

@@ -54,10 +54,6 @@ public class PNDAAvroConverter extends PNDAAbstractConverter<GenericRecord, Avro
   private static final Logger log = LoggerFactory.getLogger(PNDAAvroConverter.class);
   private boolean wrap = true;
 
-  public void close() throws IOException {
-    super.close();
-  }
-
   private boolean logOnce = true;
 
   @Override

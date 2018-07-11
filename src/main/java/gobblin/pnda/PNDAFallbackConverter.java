@@ -39,10 +39,6 @@ import gobblin.pnda.registry.TopicConfig;
  */
 public class PNDAFallbackConverter extends PNDAAbstractConverter<Object, TopicConfig> {
 
-  public void close() throws IOException {
-    super.close();
-  }
-
   @Override
   public Schema convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     return super.convertSchema(inputSchema, workUnit);

@@ -40,10 +40,10 @@ public class ProtobufTopicConfig extends TopicConfig {
     public int getSourceTag() {
         return sourceTag;
     }
-    public boolean hasSource() {return (-1!=getSourceTag());}
-    public boolean hasTimeStamp() {return (-1!=getTimestampTag());}
+    public boolean hasSource() { return -1 != getSourceTag(); }
+    public boolean hasTimeStamp() { return -1 != getTimestampTag(); }
     public String toString() {
-        return getConverterClass()+getTimestampTag()+getSourceTag();
+        return getConverterClass() + getTimestampTag() + getSourceTag();
     }
 }
 
