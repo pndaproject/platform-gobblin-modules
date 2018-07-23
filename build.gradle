@@ -68,9 +68,14 @@ jar {
   [ 'compile'].each { mode ->
     copy {
         from configurations.getByName(mode).files
-        into "./build/libs/"
+        into "./tmp/libs/"
         exclude 'gobblin-api-*.jar'
         exclude 'gobblin-core-*.jar'
+        exclude 'httpmime-*.jar'
+        exclude 'JavaEWAH-*.jar'
+        exclude 'jgrapht-core-*.jar'
+        exclude 'kite-hadoop-compatibility-*.jar'
+        exclude 'protobuf-java-*.jar'
       }
   }
 }
