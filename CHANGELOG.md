@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - PNDA-4788: Apply static code analysis
+- PNDA-4808 Gobblin not pulling data from Kafka
 
 ## [0.1.0] 2018-02-10
 ### Added
