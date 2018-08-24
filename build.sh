@@ -27,11 +27,12 @@ cd ${BASE}
 
 # Build
 mkdir -p pnda-build
+mkdir -p gobblin-PNDA-${VERSION}
 ./gradlew clean findBugsMain pmdMain build -Pversion=${VERSION}
-cp -r tmp/libs/* build/libs/
+cp -r build/libs/* gobblin-PNDA-${VERSION}
+cp -r tmp/libs/* gobblin-PNDA-${VERSION}
+tar -zcf gobblin-PNDA-${VERSION}.tar.gz gobblin-PNDA-${VERSION}
 rm -rf tmp
-cd build/libs
-tar -cvf gobblin-PNDA-${VERSION}.tar.gz *
-cd $BASE
-mv build/libs/gobblin-PNDA-${VERSION}.tar.gz pnda-build/
+rm -rf gobblin-PNDA-${VERSION}
+mv gobblin-PNDA-${VERSION}.tar.gz pnda-build/
 sha512sum pnda-build/gobblin-PNDA-${VERSION}.tar.gz > pnda-build/gobblin-PNDA-${VERSION}.tar.gz.sha512.txt
