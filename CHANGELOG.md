@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [1.0.0] 2018-08-28
 ### Added
 - PNDA-4384: Add a Registry based Converter implementation
 - PNDA-4464: Support for protobuf and user defined avro schemas for ingest
